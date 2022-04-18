@@ -3,14 +3,14 @@ using TensorFlowLite;
 using UnityEngine;
 using UnityEngine.UI;
 
-[RequireComponent(typeof(WebCamInput))]
+// [RequireComponent(typeof(WebCamInput))]
 public sealed class FaceMeshSample : MonoBehaviour
 {
     [SerializeField, FilePopup("*.tflite")]
-    private string faceModelFile = "coco_ssd_mobilenet_quant.tflite";
+    private string faceModelFile = null;
 
     [SerializeField, FilePopup("*.tflite")]
-    private string faceMeshModelFile = "coco_ssd_mobilenet_quant.tflite";
+    private string faceMeshModelFile = null;
 
     [SerializeField]
     private bool useLandmarkToDetection = true;
@@ -23,6 +23,9 @@ public sealed class FaceMeshSample : MonoBehaviour
 
     [SerializeField]
     private Material faceMaterial = null;
+
+    [SerializeField]
+    public Texture2D image = null;
 
     private FaceDetect faceDetect;
     private FaceMesh faceMesh;
@@ -52,14 +55,35 @@ public sealed class FaceMeshSample : MonoBehaviour
             faceKeypoints = new Vector3[FaceMesh.KEYPOINT_COUNT];
         }
 
-        var webCamInput = GetComponent<WebCamInput>();
-        webCamInput.OnTextureUpdate.AddListener(OnTextureUpdate);
+        // string imagePath = Application.streamingAssetsPath + "/data/enhanced/enhanced_100.png";
+        // var rawData = System.IO.File.ReadAllBytes(imagePath);
+        // Texture2D image = new Texture2D(2, 2);
+        // image.LoadImage(rawData);
+        image = Resize(image, 256, 256);
+        OnTextureUpdate(image);
+        //FindObjectOfType<UnityEngine.UI.RawImage>().texture = image;
+        GameObject rawImage = GameObject.Find("RawImage");
+        rawImage.GetComponent<RawImage>().texture = image;
+
+        // var webCamInput = GetComponent<WebCamInput>();
+        // webCamInput.OnTextureUpdate.AddListener(OnTextureUpdate);
+    }
+
+    private static Texture2D Resize(Texture2D texture2D,int targetX,int targetY)
+    {
+        RenderTexture rt=new RenderTexture(targetX, targetY,24);
+        RenderTexture.active = rt;
+        Graphics.Blit(texture2D,rt);
+        Texture2D result=new Texture2D(targetX,targetY);
+        result.ReadPixels(new Rect(0,0,targetX,targetY),0,0);
+        result.Apply();
+        return result;
     }
 
     private void OnDestroy()
     {
-        var webCamInput = GetComponent<WebCamInput>();
-        webCamInput.OnTextureUpdate.RemoveListener(OnTextureUpdate);
+        // var webCamInput = GetComponent<WebCamInput>();
+        // webCamInput.OnTextureUpdate.RemoveListener(OnTextureUpdate);
 
         faceDetect?.Dispose();
         faceMesh?.Dispose();
@@ -78,7 +102,7 @@ public sealed class FaceMeshSample : MonoBehaviour
             faceDetect.Invoke(texture);
             cameraView.material = faceDetect.transformMat;
             detectionResult = faceDetect.GetResults().FirstOrDefault();
-
+            Debug.Log($"detection {(detectionResult is null?"failed":"succeeded")}");
             if (detectionResult == null)
             {
                 return;
